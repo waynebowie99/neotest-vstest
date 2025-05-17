@@ -17,8 +17,15 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0 # Required to count the commits
-      - name: Get Version
+      - name: Get scm Version
+        if: github.event_name == 'push'
+        run: echo "LUAROCKS_VERSION=scm" >> $GITHUB_ENV
+      - name: Get tag Version
+        if: github.event_name != 'push'
         run: echo "LUAROCKS_VERSION=$(git describe --abbrev=0 --tags)" >> $GITHUB_ENV
+      - name: Get Revision
+        if: github.event_name == 'push'
+        run: echo "LUAROCKS_SPECREV=$(git log --oneline | wc -l)" >> $GITHUB_ENV
 
       # Needed to install the tree-sitter parser dependency
       - name: Install C/C++ Compiler
@@ -36,6 +43,7 @@ jobs:
           LUAROCKS_API_KEY: ${{ secrets.LUAROCKS_API_KEY }}
         with:
           version: ${{ env.LUAROCKS_VERSION }}
+          specrev: ${{ env.LUAROCKS_SPECREV }}
           dependencies: |
             neotest
             tree-sitter-c_sharp
