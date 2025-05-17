@@ -40,14 +40,20 @@ function DotnetNeotestAdapter.root(path)
 end
 
 function DotnetNeotestAdapter.is_test_file(file_path)
-  return (
-    (vim.endswith(file_path, ".csproj") or vim.endswith(file_path, ".fsproj"))
-    and test_discovery.discover_tests(file_path)
-  )
-    or (
-      (vim.endswith(file_path, ".cs") or vim.endswith(file_path, ".fs"))
-      and test_discovery.discover_tests(file_path)
-    )
+  local isTestFile = (vim.endswith(file_path, ".csproj") or vim.endswith(file_path, ".fsproj"))
+    or (vim.endswith(file_path, ".cs") or vim.endswith(file_path, ".fs"))
+
+  if not isTestFile then
+    return false
+  end
+
+  local tests = test_discovery.discover_tests(file_path)
+  local n = 0
+  if tests then
+    n = #vim.tbl_values(tests)
+  end
+
+  return tests and n > 0
 end
 
 function DotnetNeotestAdapter.filter_dir(name)

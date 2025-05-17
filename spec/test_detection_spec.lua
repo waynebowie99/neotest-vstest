@@ -99,6 +99,6 @@ describe("Test test detection", function()
 
     local project_file = dir .. "/src/CSharpTest/CSharpTest.csproj"
 
-    assert.is_false(plugin.is_test_file(project_file))
+    assert.is_falsy(plugin.is_test_file(project_file))
   end)
 end)
