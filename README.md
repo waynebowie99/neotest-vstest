@@ -11,10 +11,16 @@
 
 Neotest adapter for dotnet
 
-- Integrates with the VSTest runner to support all testing frameworks.
+- Based on the VSTest for dotnet allowing test functionality similar to those found in IDEs like Rider and Visual Studio.
+- Supports all testing frameworks.
 - DAP strategy for attaching debug adapter to test execution.
-- Supports both C# and F# projects.
-- Fine-grained test discovery and execution allowing running individual parameterized tests.
+- Supports `C#` and `F#`.
+- Can run tests on many groupings including:
+  - All tests
+  - Test projects
+  - Test files
+  - Test all methods in class
+  - Test individual cases of parameterized tests
 
 ## Pre-requisites
 
@@ -22,7 +28,7 @@ neotest-vstest requires makes a number of assumptions about your environment:
 
 1. The `dotnet sdk`, and the `dotnet` cli executable in the users runtime path.
 2. (For Debugging) `netcoredbg` is installed and `nvim-dap` plugin has been configured for `netcoredbg` (see debug config for more details)
-3. Requires treesitter parser for either `C#` or `F#`
+3. (recommended) treesitter parser for either `C#` or `F#` allowing run test in file functionality.
 4. `neovim v0.10.0` or later
 
 ## Installation
