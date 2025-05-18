@@ -10,6 +10,9 @@ on:
   pull_request: # Tests installing the generated rockspec on PR without uploading
   workflow_dispatch:
 
+env:
+  LUAROCKS_SPECREV: 1
+
 jobs:
   luarocks-upload:
     runs-on: ubuntu-22.04
