@@ -48,3 +48,9 @@ jobs:
             neotest
             tree-sitter-c_sharp
             tree-sitter-fsharp
+          copy_directories: |
+            "scripts"
+          labels: |
+            "neovim"
+            "neotest"
+          summary: "Neotest adapter for dotnet"

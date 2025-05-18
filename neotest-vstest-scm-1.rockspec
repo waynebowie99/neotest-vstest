@@ -15,10 +15,6 @@ test_dependencies = {
   "nlua",
 }
 
-source = {
-  url = "git://github.com/nsidorenco/neotest-vstest",
-}
-
 build = {
   type = "builtin",
   copy_directories = {
