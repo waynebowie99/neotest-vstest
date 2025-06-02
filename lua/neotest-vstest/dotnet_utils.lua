@@ -16,7 +16,7 @@ function M.parse_dotnet_info(input)
     return { sdk_path = nil }
   end
 
-  local match = input:match("Base Path:%s*(%S+[^\n]*)")
+  local match = input:match("Base Path:%s*([^\r\n]+)")
   return { sdk_path = match and vim.trim(match) }
 end
 
