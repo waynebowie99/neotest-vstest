@@ -288,7 +288,7 @@ end
 ---@param project DotnetProjectInfo
 ---@return integer?
 function M.get_project_last_modified(project)
-  return files.get_path_last_modified(project.proj_file)
+  return files.get_path_last_modified(project.dll_file)
 end
 
 ---@async

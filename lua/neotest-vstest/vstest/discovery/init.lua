@@ -118,6 +118,16 @@ function M.discover_project_tests(project, path)
     and path_last_modified
     and (project_last_modified < path_last_modified)
   then
+    logger.trace(
+      "rebuilding project "
+        .. project.proj_file
+        .. " on path: "
+        .. path
+        .. " last modified: "
+        .. project_last_modified
+        .. " path last modified: "
+        .. path_last_modified
+    )
     rebuilt = dotnet_utils.build_project(project)
   end
 
