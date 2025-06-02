@@ -69,7 +69,7 @@ local function get_target_frameworks(proj_file)
 
   if framework_info.TargetFramework == "" then
     local frameworks =
-        vim.split(vim.trim(framework_info.TargetFrameworks or ""), ";", { trimempty = true })
+      vim.split(vim.trim(framework_info.TargetFrameworks or ""), ";", { trimempty = true })
     table.sort(frameworks, function(a, b)
       return a > b
     end)
@@ -85,9 +85,9 @@ local function get_target_frameworks(proj_file)
     nio.scheduler()
     vim.notify(
       "Failed to get target framework for "
-      .. proj_file
-      .. " with error: "
-      .. vim.inspect(framework_info),
+        .. proj_file
+        .. " with error: "
+        .. vim.inspect(framework_info),
       vim.log.levels.ERROR
     )
 
@@ -132,13 +132,13 @@ function M.get_proj_info(path)
       file_to_project_map[path] = proj_file
     else
       if
-          not vim.iter(project_cache.projects):any(function(proj)
-            if proj == proj_file then
-              file_to_project_map[path] = proj_file
-              return true
-            end
-            return false
-          end)
+        not vim.iter(project_cache.projects):any(function(proj)
+          if proj == proj_file then
+            file_to_project_map[path] = proj_file
+            return true
+          end
+          return false
+        end)
       then
         return nil
       end
