@@ -61,12 +61,25 @@ local function get_script(script_name)
   end
 end
 
-local test_runner
+local test_runner_map = {}
 local test_runner_semaphore = nio.control.semaphore(1)
+local command_semaphore = {}
 
-function M.invoke_test_runner(command)
+---@param project DotnetProjectInfo
+---@param command any
+function M.invoke_test_runner(project, command)
+  local semaphore
   test_runner_semaphore.with(function()
-    if test_runner ~= nil then
+    if command[project.proj_file] then
+      semaphore = command_semaphore[project.proj_file]
+    else
+      command_semaphore[project.proj_file] = nio.control.semaphore(1)
+      semaphore = command_semaphore[project.proj_file]
+    end
+  end)
+
+  semaphore.with(function()
+    if test_runner_map[project.dll_file] ~= nil then
       return
     end
 
@@ -78,7 +91,7 @@ function M.invoke_test_runner(command)
 
     local vstest_command = { "dotnet", "fsi", test_discovery_script, testhost_dll }
 
-    logger.info("neotest-vstest: starting vstest console with:")
+    logger.info("neotest-vstest: starting vstest console with for " .. project.dll_file .. " with:")
     logger.info(vstest_command)
 
     local process = vim.system(vstest_command, {
@@ -104,12 +117,12 @@ function M.invoke_test_runner(command)
 
     logger.info(string.format("neotest-vstest: spawned vstest process with pid: %s", process.pid))
 
-    test_runner = function(content)
+    test_runner_map[project.dll_file] = function(content)
       process:write(content .. "\n")
     end
   end)
 
-  return test_runner(command)
+  return test_runner_map[project.dll_file](command)
 end
 
 local spin_lock = nio.control.semaphore(1)
@@ -117,10 +130,8 @@ local spin_lock = nio.control.semaphore(1)
 ---Repeatly tries to read content. Repeats until the file is non-empty or operation times out.
 ---@param file_path string
 ---@param max_wait integer maximal time to wait for the file to populated in milliseconds.
----@return string?
+---@return boolean
 function M.spin_lock_wait_file(file_path, max_wait)
-  local content
-
   local sleep_time = 25 -- scan every 25 ms
   local tries = 1
   local file_exists = false
@@ -129,7 +140,6 @@ function M.spin_lock_wait_file(file_path, max_wait)
     if lib.files.exists(file_path) then
       spin_lock.with(function()
         file_exists = true
-        content = lib.files.read(file_path)
       end)
     else
       tries = tries + 1
@@ -137,11 +147,11 @@ function M.spin_lock_wait_file(file_path, max_wait)
     end
   end
 
-  if not content then
+  if not file_exists then
     logger.warn(string.format("neotest-vstest: timed out reading content of file %s", file_path))
   end
 
-  return content
+  return file_exists
 end
 
 return M
