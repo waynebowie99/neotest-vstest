@@ -64,7 +64,7 @@ require("neotest").setup({
       sdk_path = "/usr/local/dotnet/sdk/9.0.101/",
       -- table is passed directly to DAP when debugging tests.
       dap_settings = {
-        adapter = "netcoredbg",
+        type = "netcoredbg",
       }
     })
   }
