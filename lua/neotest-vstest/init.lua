@@ -4,11 +4,10 @@ local types = require("neotest.types")
 local logger = require("neotest.logging")
 
 local utilities = require("neotest-vstest.utilities")
-local test_discovery = require("neotest-vstest.vstest.discovery")
-local cli_wrapper = require("neotest-vstest.vstest.cli_wrapper")
 local vstest_strategy = require("neotest-vstest.strategies.vstest")
 local vstest_debug_strategy = require("neotest-vstest.strategies.vstest_debugger")
 local dotnet_utils = require("neotest-vstest.dotnet_utils")
+local client_discovery = require("neotest-vstest.client")
 
 --- @type dap.Configuration
 local dap_settings = {
@@ -33,7 +32,7 @@ function DotnetNeotestAdapter.root(path)
     or lib.files.match_root_pattern("*.slnx")(path)
 
   if solution_dir then
-    test_discovery.discover_solution_tests(solution_dir)
+    client_discovery.discover_solution_tests(solution_dir)
     solution = solution_dir
   end
 
@@ -49,7 +48,7 @@ function DotnetNeotestAdapter.is_test_file(file_path)
   end
 
   local project = dotnet_utils.get_proj_info(file_path)
-  local client = test_discovery.get_client_for_project(project, solution)
+  local client = client_discovery.get_client_for_project(project, solution)
 
   local tests = (client and client:discover_tests_for_path(file_path)) or {}
 
@@ -124,7 +123,7 @@ end
 
 ---@param source string
 ---@param captured_nodes any
----@param tests_in_file table<string, TestCase>
+---@param tests_in_file table<string, neotest-vstest.TestCase>
 ---@param path string
 ---@return nil | neotest.Position | neotest.Position[]
 local function build_position(source, captured_nodes, tests_in_file, path)
@@ -184,7 +183,7 @@ local function get_top_level_tests(project)
     return {}
   end
 
-  local client = test_discovery.get_client_for_project(project, solution)
+  local client = client_discovery.get_client_for_project(project, solution)
 
   local tests_in_file = (client and client:discover_tests()) or {}
 
@@ -247,7 +246,7 @@ function DotnetNeotestAdapter.discover_positions(path)
   logger.info(string.format("neotest-vstest: scanning %s for tests...", path))
 
   local project = dotnet_utils.get_proj_info(path)
-  local client = test_discovery.get_client_for_project(project, solution)
+  local client = client_discovery.get_client_for_project(project, solution)
 
   if not client then
     return
@@ -424,7 +423,7 @@ end
 
 ---@param opts neotest-vstest.Config
 local function apply_user_settings(_, opts)
-  cli_wrapper.sdk_path = opts.sdk_path
+  require("neotest-vstest.vstest.cli_wrapper").sdk_path = opts.sdk_path
   dap_settings = vim.tbl_extend("force", dap_settings, opts.dap_settings or {})
   return DotnetNeotestAdapter
 end

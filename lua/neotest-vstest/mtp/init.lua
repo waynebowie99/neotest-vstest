@@ -4,26 +4,7 @@ local dotnet_utils = require("neotest-vstest.dotnet_utils")
 local files = require("neotest-vstest.files")
 local mtp_client = require("neotest-vstest.mtp.client")
 
----@class neotest-vstest.Client.RunResult
----@field output_stream fun(): string[]
----@field result_stream async fun(): any
----@field result_future nio.control.Future
----@field stop fun()
----
----@class neotest-vstest.Client.DebugResult
----@field pid string
----@field on_attach fun(): nil
----@field output_stream fun(): string[]
----@field result_stream async fun(): any
----@field result_future nio.control.Future
----@field stop fun()
-
----@class neotest-vstest.Client
----@field run_tests fun(self: neotest-vstest.Client, ids: string|string[]): neotest-vstest.Client.RunResult
----@field discover_tests fun(self: neotest-vstest.Client): table<string, table>
----@field discover_tests_for_path fun(self: neotest-vstest.Client, path: string): table<string, table>
----@field debug_tests fun(self: neotest-vstest.Client, ids: string|string[]): neotest-vstest.Client.DebugResult
-
+--- @class neotest-vstest.mtp-client: neotest-vstest.Client
 local Client = {}
 Client.__index = Client
 

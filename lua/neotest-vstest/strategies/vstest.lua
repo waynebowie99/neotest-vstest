@@ -2,7 +2,6 @@ local nio = require("nio")
 local logger = require("neotest.logging")
 local FanoutAccum = require("neotest.types.fanout_accum")
 local dotnet_utils = require("neotest-vstest.dotnet_utils")
-local discovery = require("neotest-vstest.vstest.discovery")
 
 ---@async
 ---@param spec neotest.RunSpec

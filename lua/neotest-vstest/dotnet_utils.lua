@@ -3,7 +3,7 @@ local lib = require("neotest.lib")
 local logger = require("neotest.logging")
 local files = require("neotest-vstest.files")
 
-local M = {}
+local dotnet_utils = {}
 
 ---@type { solution: string?, projects:string[]}?
 local project_cache
@@ -11,7 +11,7 @@ local project_cache
 ---parses output of running `dotnet --info`
 ---@param input string?
 ---@return { sdk_path: string? }
-function M.parse_dotnet_info(input)
+function dotnet_utils.parse_dotnet_info(input)
   if input == nil then
     return { sdk_path = nil }
   end
@@ -115,7 +115,7 @@ local project_semaphore = {}
 ---@async
 ---@param path string
 ---@return DotnetProjectInfo?
-function M.get_proj_info(path)
+function dotnet_utils.get_proj_info(path)
   logger.debug("neotest-vstest: getting project info for " .. path)
 
   local proj_file
@@ -234,7 +234,7 @@ local solution_discovery_semaphore = nio.control.semaphore(1)
 ---@async
 ---@param root string
 ---@return { solution: string?, projects: DotnetProjectInfo[] }
-function M.get_solution_projects(root)
+function dotnet_utils.get_solution_projects(root)
   solution_discovery_semaphore.acquire()
   if project_cache then
     solution_discovery_semaphore.release()
@@ -277,7 +277,7 @@ function M.get_solution_projects(root)
   local test_projects = {}
 
   for _, project in ipairs(projects) do
-    local project_info = M.get_proj_info(project)
+    local project_info = dotnet_utils.get_proj_info(project)
     if project_info and project_info.is_test_project then
       test_projects[#test_projects + 1] = project_info
     end
@@ -299,14 +299,14 @@ end
 ---@async
 ---@param project DotnetProjectInfo
 ---@return integer?
-function M.get_project_last_modified(project)
+function dotnet_utils.get_project_last_modified(project)
   return files.get_path_last_modified(project.dll_file)
 end
 
 ---@async
 ---@param path string
 ---@return boolean success if build was successful
-function M.build_path(path)
+function dotnet_utils.build_path(path)
   logger.debug("neotest-vstest: building path " .. path)
   local exitCode, out = lib.process.run(
     { "dotnet", "build", path },
@@ -327,8 +327,8 @@ end
 ---@async
 ---@param project DotnetProjectInfo
 ---@return boolean success if build was successful
-function M.build_project(project)
-  return M.build_path(project.proj_file)
+function dotnet_utils.build_project(project)
+  return dotnet_utils.build_path(project.proj_file)
 end
 
-return M
+return dotnet_utils

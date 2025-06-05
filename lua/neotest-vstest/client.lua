@@ -1,153 +1,109 @@
 local nio = require("nio")
-local lib = require("neotest.lib")
 local logger = require("neotest.logging")
+local mtp_client = require("neotest-vstest.mtp")
+local vstest_client = require("neotest-vstest.vstest")
 local dotnet_utils = require("neotest-vstest.dotnet_utils")
-local vstest = require("neotest-vstest.vstest")
-local cli_wrapper = require("neotest-vstest.vstest.cli_wrapper")
-local files = require("neotest-vstest.files")
-local utilities = require("neotest-vstest.utilities")
 
-local Client = {}
-Client.__index = Client
+local client_discovery = {}
 
----@param project DotnetProjectInfo
-function Client:new(project)
-  local client = {
-    project = project,
-    test_cases = {},
-    last_discovered = 0,
-    semaphore = nio.control.semaphore(1),
-  }
-  setmetatable(client, self)
-  return client
-end
+local client_creation_semaphore = nio.control.semaphore(1)
+local clients = {}
 
-function Client:discover_tests(path)
-  self.semaphore.with(function()
-    local last_modified
-    if path then
-      last_modified = files.get_path_last_modified(path)
-    else
-      last_modified = dotnet_utils.get_project_last_modified(self.project)
+---@param project DotnetProjectInfo?
+---@param solution_dir string? path to the solution directory
+---@return neotest-vstest.Client?
+function client_discovery.get_client_for_project(project, solution_dir)
+  if not project then
+    return nil
+  end
+
+  ---@type neotest-vstest.Client | boolean
+  local client = false
+
+  client_creation_semaphore.with(function()
+    if clients[project.proj_file] ~= nil then
+      client = clients[project.proj_file]
+      return
     end
-    if last_modified and last_modified > self.last_discovered then
+
+    -- Check if the project is part of a solution.
+    -- If not then do not create a client.
+    local solution_projects = solution_dir and dotnet_utils.get_solution_projects(solution_dir)
+    if solution_projects and #solution_projects.projects > 0 then
+      if not vim.list_contains(solution_projects.projects, project) then
+        logger.debug(
+          "neotest-vstest: project is not part of the solution projects: "
+            .. vim.inspect(solution_projects.projects)
+            .. ", project: "
+            .. vim.inspect(project)
+        )
+        clients[project.proj_file] = client
+        return
+      end
       logger.debug(
-        "neotest-vstest: Discovering tests: "
-          .. " last modified at "
-          .. last_modified
-          .. " last discovered at "
-          .. self.last_discovered
+        "neotest-vstest: project is part of the solution projects: " .. vim.inspect(project)
       )
-      dotnet_utils.build_project(self.project)
-      last_modified = dotnet_utils.get_project_last_modified(self.project)
-      self.last_discovered = last_modified or 0
-      self.test_cases = vstest.discover_tests_in_project(self.project) or {}
+    else
+      logger.debug(
+        "neotest-vstest: no solution projects found, using solution: " .. vim.inspect(solution_dir)
+      )
     end
+
+    -- Project is part of a solution or standalone, create a client.
+    if project.is_mtp_project then
+      logger.debug(
+        "neotest-vstest: Creating mtp client for project "
+          .. project.proj_file
+          .. " and "
+          .. project.dll_file
+      )
+      client = mtp_client:new(project)
+    elseif project.is_test_project then
+      client = vstest_client:new(project)
+    end
+    clients[project.proj_file] = client
   end)
 
-  return self.test_cases
+  if client == false then
+    return nil
+  else
+    return client
+  end
 end
 
-function Client:discover_tests_for_path(path)
-  self:discover_tests(path)
-  return self.test_cases[path]
-end
+local solution_cache
+local solution_semaphore = nio.control.semaphore(1)
 
----@async
----@param ids string[] list of test ids to run
----@return neotest-vstest.Client.RunResult
-function Client:run_tests(ids)
-  local result_future = nio.control.future()
-  local process_output_file, stream_file, result_file = vstest.run_tests(self.project, ids)
-
-  local result_stream_data, result_stop_stream = lib.files.stream_lines(stream_file)
-  local output_stream_data, output_stop_stream = lib.files.stream_lines(process_output_file)
-
-  local result_stream = utilities.stream_queue()
-
-  nio.run(function()
-    local stream = result_stream_data()
-    for _, line in ipairs(stream) do
-      local success, result = pcall(vim.json.decode, line)
-      assert(success, "neotest-vstest: failed to decode result stream: " .. line)
-      result_stream.write(result)
-    end
-  end)
-
-  local stop_stream = function()
-    output_stop_stream()
-    result_stop_stream()
+function client_discovery.discover_solution_tests(root)
+  if solution_cache then
+    return solution_cache
   end
 
-  nio.run(function()
-    cli_wrapper.spin_lock_wait_file(result_file, 5 * 30 * 1000)
-    local parsed = {}
-    local results = lib.files.read_lines(result_file)
-    for _, line in ipairs(results) do
-      local success, result = pcall(vim.json.decode, line)
-      assert(success, "neotest-vstest: failed to decode result file: " .. line)
-      parsed[result.id] = result.result
+  solution_semaphore.acquire()
+
+  local res = dotnet_utils.get_solution_projects(root)
+
+  dotnet_utils.build_path(root)
+
+  local project_clients = {}
+
+  for _, project in ipairs(res.projects) do
+    if project.is_test_project or project.is_mtp_project then
+      project_clients[project.proj_file] = client_discovery.get_client_for_project(project)
     end
-    result_future.set(parsed)
-  end)
-
-  return {
-    result_future = result_future,
-    result_stream = result_stream.get,
-    output_stream = output_stream_data,
-    stop = stop_stream,
-  }
-end
-
----@async
----@param ids string[] list of test ids to run
----@return neotest-vstest.Client.RunResult
-function Client:debug_tests(ids)
-  local result_future = nio.control.future()
-  local pid, on_attach, process_output_file, stream_file, result_file =
-    vstest.debug_tests(self.project, ids)
-
-  local result_stream_data, result_stop_stream = lib.files.stream_lines(stream_file)
-  local output_stream_data, output_stop_stream = lib.files.stream_lines(process_output_file)
-
-  local result_stream = utilities.stream_queue()
-
-  nio.run(function()
-    local stream = result_stream_data()
-    for _, line in ipairs(stream) do
-      local success, result = pcall(vim.json.decode, line)
-      assert(success, "neotest-vstest: failed to decode result stream: " .. line)
-      result_stream.write(result)
-    end
-  end)
-
-  local stop_stream = function()
-    output_stop_stream()
-    result_stop_stream()
   end
 
-  nio.run(function()
-    cli_wrapper.spin_lock_wait_file(result_file, 5 * 30 * 1000)
-    local parsed = {}
-    local results = lib.files.read_lines(result_file)
-    for _, line in ipairs(results) do
-      local success, result = pcall(vim.json.decode, line)
-      assert(success, "neotest-vstest: failed to decode result file: " .. line)
-      parsed[result.id] = result.result
-    end
-    result_future.set(parsed)
-  end)
+  logger.debug("neotest-vstest: discovered projects:")
+  logger.debug(res.projects)
 
-  assert(pid, "neotest-vstest: failed to get pid from debug tests")
+  for _, client in ipairs(project_clients) do
+    local project_tests = client:discover_tests()
+    vim.tbl_extend("force", solution_cache, project_tests)
+  end
 
-  return {
-    pid = pid,
-    on_attach = on_attach,
-    result_future = result_future,
-    output_stream = output_stream_data,
-    result_stream = result_stream.get,
-    stop = stop_stream,
-  }
+  solution_semaphore.release()
+
+  return solution_cache
 end
 
-return Client
+return client_discovery

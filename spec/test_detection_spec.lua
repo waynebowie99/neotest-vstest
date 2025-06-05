@@ -43,6 +43,25 @@ describe("Test test detection", function()
     assert.are_same(expected_tests, tests)
   end)
 
+  nio.tests.it("detect tests in fsharp file with many test cases", function()
+    local plugin = require("neotest-vstest")
+    local dir = vim.fn.getcwd() .. "/spec/samples/test_solution"
+    local test_file = dir .. "/src/FsharpTest/ManyTests.fs"
+    local positions = plugin.discover_positions(test_file)
+
+    assert(positions, "Positions should not be nil")
+
+    local tests = {}
+
+    for _, position in positions:iter() do
+      if position.type == "test" then
+        tests[#tests + 1] = position.name
+      end
+    end
+
+    assert.are_same(1530, #tests)
+  end)
+
   nio.tests.it("detect tests in c_sharp file", function()
     local plugin = require("neotest-vstest")
     local dir = vim.fn.getcwd() .. "/spec/samples/test_solution"
