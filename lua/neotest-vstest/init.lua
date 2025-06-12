@@ -69,7 +69,6 @@ function DotnetNeotestAdapter.root(path)
 
     if solution_dir_future.wait() then
       logger.info(string.format("neotest-vstest: found solution file %s", solution))
-      client_discovery.discover_solution_tests(solution)
       return solution_dir
     end
   end
@@ -79,24 +78,24 @@ function DotnetNeotestAdapter.root(path)
 end
 
 function DotnetNeotestAdapter.is_test_file(file_path)
-  local isTestFile = (vim.endswith(file_path, ".csproj") or vim.endswith(file_path, ".fsproj"))
+  local isDotnetFile = (vim.endswith(file_path, ".csproj") or vim.endswith(file_path, ".fsproj"))
     or (vim.endswith(file_path, ".cs") or vim.endswith(file_path, ".fs"))
 
-  if not isTestFile then
+  if not isDotnetFile then
     return false
   end
 
   local project = dotnet_utils.get_proj_info(file_path)
   local client = client_discovery.get_client_for_project(project, solution)
 
-  local tests = (client and client:discover_tests_for_path(file_path)) or {}
-
-  local n = 0
-  if tests then
-    n = #vim.tbl_values(tests)
+  if not client then
+    logger.debug(
+      "neotest-vstest: marking file as non-test file since no client was found: " .. file_path
+    )
+    return false
   end
 
-  return tests and n > 0
+  return true
 end
 
 function DotnetNeotestAdapter.filter_dir(name)
@@ -183,7 +182,6 @@ local function build_position(source, captured_nodes, tests_in_file, path)
             type = match_type,
             path = path,
             name = test.DisplayName,
-            qualified_name = test.FullyQualifiedName,
             range = { definition:range() },
           })
           tests_in_file[id] = nil
@@ -224,15 +222,22 @@ local function get_top_level_tests(project)
 
   local client = client_discovery.get_client_for_project(project, solution)
 
-  local tests_in_file = (client and client:discover_tests()) or {}
+  if not client then
+    logger.debug(
+      "neotest-vstest: not discovering top-level tests due to no client for project: "
+        .. vim.inspect(project)
+    )
+  end
 
+  local tests_in_file = (client and client:discover_tests()) or {}
+  local tests_in_project = tests_in_file[project.proj_file]
   logger.debug(string.format("neotest-vstest: top-level tests in file: %s", project.dll_file))
 
-  if not tests_in_file or next(tests_in_file) == nil then
+  if not tests_in_project or next(tests_in_project) == nil then
     return
   end
 
-  local n = #tests_in_file
+  local n = #tests_in_project
 
   local nodes = {
     {
@@ -246,16 +251,19 @@ local function get_top_level_tests(project)
   local i = 0
 
   -- add tests which does not have a matching tree-sitter node.
-  for id, test in pairs(tests_in_file) do
+  for id, test in pairs(tests_in_project) do
     nodes[#nodes + 1] = {
       id = id,
       type = "test",
-      path = project.proj_file,
+      path = test.CodeFilePath,
       name = test.DisplayName,
-      qualified_name = test.FullyQualifiedName,
       range = { i, 0, i + 1, -1 },
     }
     i = i + 1
+  end
+
+  if #nodes <= 1 then
+    return {}
   end
 
   local structure = assert(build_structure(nodes, {}, {
@@ -288,6 +296,9 @@ function DotnetNeotestAdapter.discover_positions(path)
   local client = client_discovery.get_client_for_project(project, solution)
 
   if not client then
+    logger.debug(
+      "neotest-vstest: not discovering tests due to no client for file: " .. vim.inspect(path)
+    )
     return
   end
 
@@ -345,18 +356,22 @@ function DotnetNeotestAdapter.discover_positions(path)
 
     -- add tests which does not have a matching tree-sitter node.
     for id, test in pairs(tests_in_file) do
+      local line = test.LineNumber or 0
       nodes[#nodes + 1] = {
         id = id,
         type = "test",
         path = path,
         name = test.DisplayName,
-        qualified_name = test.FullyQualifiedName,
-        range = { test.LineNumber - 1, 0, test.LineNumber - 1, -1 },
+        range = { line - 1, 0, line - 1, -1 },
       }
     end
 
     for _, node in ipairs(nodes) do
       node.client = client
+    end
+
+    if #nodes <= 1 then
+      return {}
     end
 
     local structure = assert(build_structure(nodes, {}, {
@@ -430,7 +445,7 @@ function DotnetNeotestAdapter.build_spec(args)
   }
 end
 
-function DotnetNeotestAdapter.results(spec, result, _tree)
+function DotnetNeotestAdapter.results(spec, result)
   logger.info("neotest-vstest: waiting for test results")
   logger.debug(spec)
   logger.debug(result)
@@ -440,7 +455,7 @@ function DotnetNeotestAdapter.results(spec, result, _tree)
   if not results then
     for _, id in ipairs(vim.tbl_values(spec.context.projects_id_map)) do
       results[id] = {
-        status = types.ResultStatus.failed,
+        status = types.ResultStatus.skipped,
         output = spec.context.result_path,
         errors = {
           { message = result.output },

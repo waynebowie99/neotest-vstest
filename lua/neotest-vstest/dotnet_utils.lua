@@ -184,6 +184,7 @@ function dotnet_utils.get_proj_info(path)
     "-getProperty:MSBuildProjectDirectory",
     "-getProperty:IsTestProject",
     "-getProperty:IsTestingPlatformApplication",
+    "-getProperty:DisableTestingPlatformServerCapability",
     "-property:TargetFramework=" .. target_framework,
   }
 
@@ -198,13 +199,22 @@ function dotnet_utils.get_proj_info(path)
   logger.debug("neotest-vstest: msbuild properties for " .. proj_file .. ":")
   logger.debug(properties)
 
+  local is_mtp_disabled = properties.DisableTestingPlatformServerCapability == "true"
+
+  ---@class DotnetProjectInfo
   local proj_data = {
     proj_file = proj_file,
     dll_file = properties.TargetPath,
     proj_dir = properties.MSBuildProjectDirectory,
     is_test_project = properties.IsTestProject == "true",
-    is_mtp_project = properties.IsTestingPlatformApplication == "true",
+    is_mtp_project = not is_mtp_disabled and properties.IsTestingPlatformApplication == "true",
   }
+
+  setmetatable(proj_data, {
+    __eq = function(a, b)
+      return a.proj_file == b.proj_file
+    end,
+  })
 
   if proj_data.dll_file == "" then
     logger.debug("neotest-vstest: failed to find dll file for " .. proj_file)
@@ -313,6 +323,7 @@ function dotnet_utils.build_path(path)
     nio.scheduler()
     logger.error("neotest-vstest: failed to build path " .. path)
     logger.error(out.stdout)
+    logger.error(out.stderr)
     vim.notify_once("neotest-vstest: failed to build project " .. path, vim.log.levels.ERROR)
     return false
   end

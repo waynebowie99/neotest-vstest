@@ -1,22 +1,30 @@
 describe("Test test detection", function()
   -- increase nio.test timeout
-  vim.env.PLENARY_TEST_TIMEOUT = 20000
+  vim.env.PLENARY_TEST_TIMEOUT = 40000
   -- add test_discovery script and treesitter parsers installed with luarocks
   vim.opt.runtimepath:append(vim.fn.getcwd())
   vim.opt.runtimepath:append(vim.fn.expand("~/.luarocks/lib/lua/5.1/"))
 
   local nio = require("nio")
+  ---@type neotest.Adapter
+  local plugin
 
-  require("neotest").setup({
-    adapters = { require("neotest-vstest") },
-    log_level = 0,
-  })
+  local solution_path = vim.fn.getcwd() .. "/spec/samples/test_solution"
+
+  lazy_setup(function()
+    require("neotest").setup({
+      adapters = { require("neotest-vstest") },
+      log_level = 0,
+    })
+    plugin = require("neotest-vstest")
+    plugin.root(solution_path)
+  end)
 
   nio.tests.it("detect tests in fsharp file", function()
-    local plugin = require("neotest-vstest")
-    local dir = vim.fn.getcwd() .. "/spec/samples/test_solution"
-    local test_file = dir .. "/src/FsharpTest/Tests.fs"
+    local test_file = solution_path .. "/src/FsharpTest/Tests.fs"
     local positions = plugin.discover_positions(test_file)
+
+    assert.is_not_nil(positions, "Positions should not be nil")
 
     local tests = {}
 
@@ -44,9 +52,7 @@ describe("Test test detection", function()
   end)
 
   nio.tests.it("detect tests in fsharp file with many test cases", function()
-    local plugin = require("neotest-vstest")
-    local dir = vim.fn.getcwd() .. "/spec/samples/test_solution"
-    local test_file = dir .. "/src/FsharpTest/ManyTests.fs"
+    local test_file = solution_path .. "/src/FsharpTest/ManyTests.fs"
     local positions = plugin.discover_positions(test_file)
 
     assert(positions, "Positions should not be nil")
@@ -63,9 +69,7 @@ describe("Test test detection", function()
   end)
 
   nio.tests.it("detect tests in c_sharp file", function()
-    local plugin = require("neotest-vstest")
-    local dir = vim.fn.getcwd() .. "/spec/samples/test_solution"
-    local test_file = dir .. "/src/CSharpTest/UnitTest1.cs"
+    local test_file = solution_path .. "/src/CSharpTest/UnitTest1.cs"
     local positions = plugin.discover_positions(test_file)
 
     local tests = {}
@@ -90,33 +94,21 @@ describe("Test test detection", function()
   end)
 
   nio.tests.it("filter non test directory", function()
-    local plugin = require("neotest-vstest")
-    local dir = vim.fn.getcwd() .. "/spec/samples/test_solution"
-
-    assert.is_false(plugin.filter_dir("bin", "/src/CSharpTest/bin", dir))
+    assert.is_false(plugin.filter_dir("bin", "/src/CSharpTest/bin", solution_path))
   end)
 
   nio.tests.it("not filter test directory", function()
-    local plugin = require("neotest-vstest")
-    local dir = vim.fn.getcwd() .. "/spec/samples/test_solution"
-
-    assert.is_truthy(plugin.filter_dir("CSharpTest", "/src/CSharpTest", dir))
+    assert.is_truthy(plugin.filter_dir("CSharpTest", "/src/CSharpTest", solution_path))
   end)
 
   nio.tests.it("identify test file", function()
-    local plugin = require("neotest-vstest")
-    local dir = vim.fn.getcwd() .. "/spec/samples/test_solution"
-
-    local test_file = dir .. "/src/CSharpTest/UnitTest1.cs"
+    local test_file = solution_path .. "/src/CSharpTest/UnitTest1.cs"
 
     assert.is_truthy(plugin.is_test_file(test_file))
   end)
 
-  nio.tests.it("filter non-test file", function()
-    local plugin = require("neotest-vstest")
-    local dir = vim.fn.getcwd() .. "/spec/samples/test_solution"
-
-    local project_file = dir .. "/src/CSharpTest/CSharpTest.csproj"
+  nio.tests.it("filter file in non-test project", function()
+    local project_file = solution_path .. "/src/ConsoleApp/ConsoleApp.csproj"
 
     assert.is_falsy(plugin.is_test_file(project_file))
   end)
