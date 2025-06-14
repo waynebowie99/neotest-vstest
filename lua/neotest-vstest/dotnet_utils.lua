@@ -146,11 +146,16 @@ function dotnet_utils.get_proj_info(path)
     end
   end
 
-  local semaphore
-
   if not proj_file then
     return nil
   end
+
+  --- Simple check before acquiring the semaphore to avoid unnecessary waits.
+  if proj_info_cache[proj_file] then
+    return proj_info_cache[proj_file]
+  end
+
+  local semaphore
 
   if project_semaphore[proj_file] then
     semaphore = project_semaphore[proj_file]
