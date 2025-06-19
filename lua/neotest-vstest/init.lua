@@ -237,7 +237,7 @@ local function get_top_level_tests(project)
     return
   end
 
-  local n = #tests_in_project
+  local n = vim.tbl_count(tests_in_project)
 
   local nodes = {
     {
