@@ -368,7 +368,7 @@ function DotnetNeotestAdapter.discover_positions(path)
     end
 
     for _, node in ipairs(nodes) do
-      node.client = client
+      node.project = project
     end
 
     if #nodes <= 1 then
@@ -414,8 +414,9 @@ function DotnetNeotestAdapter.build_spec(args)
   for _, position in tree:iter() do
     if position.type == "test" then
       logger.debug(position)
-      local tests = projects[position.client] or {}
-      projects[position.client] = vim.list_extend(tests, { position.id })
+      local client = client_discovery.get_client_for_project(position.project, solution)
+      local tests = projects[client] or {}
+      projects[client] = vim.list_extend(tests, { position.id })
     end
   end
 
