@@ -319,8 +319,7 @@ function DotnetNeotestAdapter.discover_positions(path)
 
   if tests_in_file then
     local content = lib.files.read(path)
-    nio.scheduler()
-    tests_in_file = vim.fn.deepcopy(tests_in_file)
+    tests_in_file = nio.fn.deepcopy(tests_in_file)
     local lang_tree =
       vim.treesitter.get_string_parser(content, filetype, { injections = { [filetype] = "" } })
 

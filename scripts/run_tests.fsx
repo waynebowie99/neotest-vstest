@@ -38,8 +38,6 @@ type NeotestResult =
       errors: NeoTestResultError array }
 
 module TestDiscovery =
-    open System.Collections.Concurrent
-
     let parseArgs (args: string) =
         args.Split(" ", StringSplitOptions.TrimEntries &&& StringSplitOptions.RemoveEmptyEntries)
         |> Array.tail
@@ -287,6 +285,7 @@ module TestDiscovery =
             | DiscoveryRequest args ->
                 // spawn as task to allow running discovery concurrently
                 let sourcesStr = args.Sources |> String.concat " "
+                discoveredTests.Clear()
 
                 try
                     let discoveryHandler =
