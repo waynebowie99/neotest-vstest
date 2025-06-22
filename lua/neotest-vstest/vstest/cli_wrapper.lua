@@ -76,6 +76,7 @@ function M.create_test_runner(project)
   logger.info(vstest_command)
 
   local process = vim.system(vstest_command, {
+    detach = false,
     stdin = true,
     stdout = function(err, data)
       if data then

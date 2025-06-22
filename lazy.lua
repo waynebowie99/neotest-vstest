@@ -1,6 +1,6 @@
 return {
-  "nsidorenco/neotest-vstest",
-  dependencies = {
-    "nvim-neotest/neotest",
-  },
+  { "nvim-lua/plenary.nvim", lazy = true },
+  { "nvim-neotest/nvim-nio", lazy = true },
+  { "nsidorenco/neotest-vstest", lazy = true },
+  "nvim-neotest/neotest",
 }
