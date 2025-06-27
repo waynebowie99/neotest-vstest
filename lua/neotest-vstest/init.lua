@@ -42,7 +42,7 @@ local function create_adapter(config)
 
     local solutions = vim.fs.find(function(name, _)
       return name:match("%.slnx?$")
-    end, { upward = false, type = "file", path = first_solution, limit = math.huge })
+    end, { upward = false, type = "file", path = first_solution or path, limit = math.huge })
 
     logger.info(string.format("neotest-vstest: scanning %s for solution file...", first_solution))
     logger.info(solutions)
