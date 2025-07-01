@@ -81,13 +81,13 @@ local function create_adapter(config)
             end)
           end)
         end
+      end
 
-        if solution_dir_future.wait() and solution then
-          logger.info(string.format("neotest-vstest: found solution file %s", solution))
-          dotnet_utils.build_path(solution)
-          dotnet_utils.get_solution_info(solution)
-          return solution_dir
-        end
+      if solution_dir_future.wait() and solution then
+        logger.info(string.format("neotest-vstest: found solution file %s", solution))
+        dotnet_utils.build_path(solution)
+        dotnet_utils.get_solution_info(solution)
+        return solution_dir
       end
     end
 
