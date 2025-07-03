@@ -134,6 +134,8 @@ function dotnet_utils.get_proj_info(path)
     return nil
   end
 
+  proj_file = vim.fs.normalize(proj_file)
+
   local semaphore
 
   if project_semaphore[proj_file] then
@@ -173,6 +175,7 @@ function dotnet_utils.get_proj_info(path)
     "-getItem:Compile",
     "-getProperty:TargetPath",
     "-getProperty:MSBuildProjectDirectory",
+    "-getProperty:MSBuildProjectFullPath",
     "-getProperty:IsTestProject",
     "-getProperty:IsTestingPlatformApplication",
     "-getProperty:DisableTestingPlatformServerCapability",
@@ -194,7 +197,8 @@ function dotnet_utils.get_proj_info(path)
 
   ---@class DotnetProjectInfo
   local proj_data = {
-    proj_file = vim.fs.normalize(proj_file),
+    proj_file = (properties.MSBuildProjectFullPath ~= "" and properties.MSBuildProjectFullPath)
+      or proj_file,
     dll_file = properties.TargetPath,
     proj_dir = properties.MSBuildProjectDirectory,
     last_discovered = files.get_path_last_modified(proj_file) or 0,
@@ -343,15 +347,21 @@ function dotnet_utils.get_project_last_modified(project)
   return files.get_path_last_modified(project.dll_file)
 end
 
+local build_semaphore = nio.control.semaphore(1)
+
 ---@async
 ---@param path string
 ---@return boolean success if build was successful
 function dotnet_utils.build_path(path)
+  build_semaphore.acquire()
+
   logger.debug("neotest-vstest: building path " .. path)
   local exitCode, out = lib.process.run(
     { "dotnet", "build", path },
     { stdout = true, stderr = true }
   )
+
+  build_semaphore.release()
 
   if exitCode ~= 0 then
     nio.scheduler()

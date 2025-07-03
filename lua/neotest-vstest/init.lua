@@ -41,7 +41,12 @@ local function create_adapter(config)
 
     local solutions = vim.fs.find(function(name, _)
       return name:match("%.slnx?$")
-    end, { upward = false, type = "file", path = first_solution or path, limit = math.huge })
+    end, {
+      upward = false,
+      type = "file",
+      path = first_solution or path,
+      limit = math.huge,
+    })
 
     logger.info(string.format("neotest-vstest: scanning %s for solution file...", first_solution))
     logger.info(solutions)
@@ -54,16 +59,14 @@ local function create_adapter(config)
     end
 
     if solution or #solutions > 0 then
-      local solution_dir_future = nio.control.future()
+      local solution_future = nio.control.future()
 
       if solution then
-        solution_dir = vim.fs.dirname(solution)
-        solution_dir_future.set(solution_dir)
+        solution_future.set(solution)
       else
         if #solutions == 1 then
           solution = solutions[1]
-          solution_dir = vim.fs.dirname(solution)
-          solution_dir_future.set(solution_dir)
+          solution_future.set(solution)
         else
           vim.ui.select(solutions, {
             prompt = "Multiple solutions exists. Select a solution file: ",
@@ -77,16 +80,18 @@ local function create_adapter(config)
                 solution_dir = vim.fs.dirname(selected)
               end
               logger.info(string.format("neotest-vstest: selected solution file %s", selected))
-              solution_dir_future.set(solution_dir)
+              solution_future.set(solution)
             end)
           end)
         end
       end
 
-      if solution_dir_future.wait() and solution then
-        logger.info(string.format("neotest-vstest: found solution file %s", solution))
+      if solution_future.wait() and solution then
         dotnet_utils.build_path(solution)
         dotnet_utils.get_solution_info(solution)
+        solution = string.gsub(solution, "/", lib.files.sep)
+        solution_dir = string.gsub(vim.fs.dirname(solution), "/", lib.files.sep)
+        logger.info(string.format("neotest-vstest: found solution dir %s", solution_dir))
         return solution_dir
       end
     end
