@@ -7,6 +7,14 @@
 </a>
 </p>
 
+<p align="center">
+  <img 
+    width="923" 
+    alt="test discovery sample" 
+    src="https://github.com/user-attachments/assets/7e297d7a-f06d-44a9-adef-92131185e8ca" />
+</p>
+
+
 # Neotest VSTest
 
 Neotest adapter for dotnet
