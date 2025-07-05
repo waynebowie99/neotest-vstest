@@ -132,11 +132,25 @@ local function create_adapter(config)
       return false
     end
 
+    local project_dir
+
     -- Filter out directories that are not part of the solution (if there is a solution)
     local fullpath = vim.fs.joinpath(root, rel_path)
-    local project_dir = vim.fs.root(fullpath, function(path, _)
-      return path:match("%.[cf]sproj$")
-    end)
+    for dir in vim.fs.parents(fullpath) do
+      if solution_dir then
+        break
+      end
+
+      for filename in vim.fs.dir(dir) do
+        if filename:match("%.[cf]sproj$") then
+          project_dir = dir
+          break
+        end
+      end
+      if vim.fs.normalize(dir) == vim.fs.normalize(root) then
+        break
+      end
+    end
 
     -- We cannot determine if the file is a test file without a project directory.
     -- Keep searching the child by not filtering it out
