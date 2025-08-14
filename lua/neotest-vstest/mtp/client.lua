@@ -137,7 +137,7 @@ function M.create_client(dll_path, on_update, on_log, mtp_env)
     client_future.set(client)
   end)
 
-  return client_future, mtp_process_pid
+  return client_future, mtp_process.pid
 end
 
 ---@async
