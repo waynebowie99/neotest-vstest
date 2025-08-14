@@ -33,7 +33,9 @@ local function start_server(dll_path, mtp_env)
       logger.debug("neotest-vstest: Accepted connection from mtp")
       mtp_client = client
       client:read_start(function(err, data)
-        -- assert(not err, err)
+        if err then
+          logger.warn("neotest-vstest: " .. err)
+        end
         if data then
           logger.trace("neotest-vstest: Received data from mtp with pid: " .. data)
           lsp_client:write(data)
@@ -155,6 +157,7 @@ function M.discovery_tests(dll_path)
 
   local client_future = M.create_client(dll_path, on_update, function() end)
 
+  --@type vim.lsp.Client
   local client = client_future.wait()
 
   nio.scheduler()
@@ -163,7 +166,7 @@ function M.discovery_tests(dll_path)
   local run_id = uuid()
   client:request_sync("testing/discoverTests", {
     runId = run_id,
-  })
+  }, 30000)
 
   logger.debug("neotest-vstest: Discovered test results: " .. vim.inspect(tests))
 
