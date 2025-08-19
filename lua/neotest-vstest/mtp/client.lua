@@ -107,7 +107,9 @@ function M.create_client(dll_path, on_update, on_log, mtp_env)
       cmd = vim.lsp.rpc.connect(server:getsockname().ip, server:getsockname().port),
       root_dir = vim.fs.dirname(dll_path),
       on_exit = function()
-        logger.debug("neotest-vstest: MTP process shutdown triggered from client with PID: " .. mtp_process.pid)
+        logger.debug(
+          "neotest-vstest: MTP process shutdown triggered from client with PID: " .. mtp_process.pid
+        )
         server:shutdown()
         mtp_process:kill(9)
       end,
@@ -206,9 +208,9 @@ local function parseTestResult(test)
   return {
     status = outcome,
     short = test.node["standardOutput"]
-        or test.node["error.message"]
-        or test.node["execution-state"]
-        or default_short_message,
+      or test.node["error.message"]
+      or test.node["execution-state"]
+      or default_short_message,
     errors = errors,
   }
 end
