@@ -34,7 +34,7 @@ local function map_test_cases(project, test_nodes)
       test_cases[file] = vim.tbl_extend("force", existing, {
         [node.uid] = {
           CodeFilePath = location,
-          DisplayName = node["display-name"],
+          DisplayName = string.gsub(node["display-name"], "[^(]+%.", "", 1),
           LineNumber = line_number,
           FullyQualifiedName = fully_qualified_name,
         },
